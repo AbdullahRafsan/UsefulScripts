@@ -1,0 +1,50 @@
+#! /bin/bash
+
+command_c="clang"
+command_cpp="clang++"
+win_modifier="x86_64-w64-mingw32-"
+if [[ $2 = "win" ]]
+then
+  command_c="$win_modifier$command_c --static"
+  command_cpp="$win_modifier$command_cpp --static"
+fi
+
+if [[ $1 = "" ]]
+then
+  echo "No file was given"
+  exit
+fi
+
+format=`echo $1 | cut -d "." -f 2 -s`
+
+if [[ $format = "" ]]
+then
+  echo "Invalid file"
+  exit
+fi
+
+output=`echo $1 | cut -s -d "." -f 1`
+
+if [[ $format = "c" ]]
+then
+  command="$command_c -o $output"
+elif [[ $format = "cpp" ]]
+then
+  command="command_cpp -o $output"
+fi
+
+$command $1
+
+if [[ $? -eq 0 ]]
+then
+  if [[ $TERMUX_VERSION ]]
+  then
+    termux-elf-cleaner $output 2&>1 /dev/null
+  fi
+  if [[ $2 ="win" ]]
+  then
+    echo "Please run in aWindows machine."
+  else
+    ./$output
+  fi
+fi

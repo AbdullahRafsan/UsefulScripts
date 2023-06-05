@@ -41,10 +41,11 @@ then
   then
     termux-elf-cleaner $output 2&>1 /dev/null
   fi
-  if [[ $2 ="win" ]]
+  if [[ $2 = "win" ]]
   then
-    echo "Please run in aWindows machine."
+    echo "Please run in a Windows machine."
   else
+    echo -e "\033[33mRunning: $output\033[0m"
     ./$output
   fi
 fi

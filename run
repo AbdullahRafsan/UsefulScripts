@@ -38,7 +38,7 @@ then
   echo -e "\033[33mRunning: $output\033[0m"
   if [[ $format != "java" && $TERMUX_VERSION ]]
   then
-    termux-elf-cleaner $output 2&>1 /dev/null
+    termux-elf-cleaner $output > /dev/null 2>&1
   fi
   if [[ $format = "java" ]]
   then

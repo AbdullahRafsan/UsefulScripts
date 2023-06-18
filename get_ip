@@ -1,0 +1,11 @@
+#! /bin/bash
+
+INTERFACES=`ifconfig -l -u`
+
+for i in $INTERFACES
+do
+    IFCFG=`ifconfig $i`
+    IP4=`echo $IFCFG | grep -E -o "inet [0-9]{0,3}\.[0-9]{0,3}\.[0-9]{0,3}\.[0-9]{0,3}"`
+    IP6=`echo $IFCFG | grep -E -o "inet6 [[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}"`
+    echo -e "Interface \033[34m$i: \033[32m$IP4 \033[31m$IP6 \033[0m"
+done

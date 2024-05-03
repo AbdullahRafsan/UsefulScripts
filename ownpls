@@ -1,0 +1,17 @@
+#! /bin/bash
+
+uid="$(id -u)"
+gid="$(id -g)"
+
+if ! chown -R "$uid":"$gid" "$@"
+then
+    echo "Operation failed, retrying as 'root'"
+    if ! sudo chown -R "$uid":"$gid" "$@"
+    then
+        echo "Operation failed !"
+    else
+        echo "Operation success !"
+    fi
+else
+    echo "Operation success !"
+fi

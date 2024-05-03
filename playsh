@@ -1,0 +1,7 @@
+#! /bin/bash
+
+stty -echo -echoe -echoke -echoctl
+echo -n "Enter something: "
+read -r p
+echo -e "\nYou entered: $p"
+stty echo echoe echoke echoctl

@@ -1,0 +1,7 @@
+#! /bin/zsh
+test_url="http://ftp.timepassbd.live/timepassbd-data/ftp2/TV_SERIES/ENGLISH_TV_SERIES/1-100/2%20Broke%20Girls/Season%201/"
+regex="<td.*>(.*)<\/td>/gU"
+function dl() {
+  curl $test_url | grep -P -i $regex
+}
+dl

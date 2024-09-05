@@ -73,6 +73,8 @@ try:
 
     if sys.argv[1].startswith("http://ftp.timepassbd.live"):
         ls(sys.argv[1][26:])
+    elif sys.argv[1].startswith("/timepassbd-data")
+        ls(sys.argv[1])
     else:
         print("invalid url")
 except KeyboardInterrupt:

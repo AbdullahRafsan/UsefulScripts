@@ -1,0 +1,103 @@
+#! /usr/bin/env python3
+
+import requests
+from bs4 import BeautifulSoup
+import os
+
+TIMEPASSBD_URL = "http://ftp.timepassbd.live"
+FTPBD2_URL = "http://server2.ftpbd.net"
+FTPBD3_URL = "http://server3.ftpbd.net"
+FTPBD4_URL = "http://server4.ftpbd.net"
+FTPBD5_URL = "http://server5.ftpbd.net"
+DATA_DIR = os.getenv("HOME") + "/.ftpdl"
+try:
+    os.mkdir(DATA_DIR)
+except FileExistsError:
+    pass
+except OSError:
+    print("Bye.")
+    exit()
+
+def ls(base_url,path):
+    global count
+    global file
+    data = requests.get(base_url+path).text
+    soup = BeautifulSoup(data,'html.parser')
+    table = soup.table
+
+    for tr in table:
+        item_type = ''
+        item_url = ''
+        for td in tr:
+            if td.name == 'td':
+                if td.img != None:
+                    item_type = td.img['alt']
+                if td.a != None:
+                    item_url = td.a['href']
+        if item_type == 'folder':
+            ls(base_url,item_url)
+        elif item_type == 'file':
+              count = count + 1
+              print("indexed: " + str(count) + " item.",end="\r")
+              file.write(base_url+item_url+"\n")
+        else:    
+            pass
+
+def timepassbd():
+    global file
+    global count
+    file = open(DATA_DIR+"/timepassbd.ftp.index","w")
+    count = 0
+    print("From ftp.timepassbd.live: ")
+    ls(TIMEPASSBD_URL,"/")
+    print("Total " + str(count) + " items found.")
+    file.close()
+
+def ftpbd2():
+    global file
+    global count
+    file = open(DATA_DIR + "/ftpbd2.ftp.index","w")
+    count = 0
+    print("From server2.ftpbd.net/FTP-2: ")
+    ls(FTPBD2_URL,"/FTP-2")
+    print("Total " + str(count) + " items found.")
+    file.close()
+
+def ftpbd3():
+    global file
+    global count
+    file = open(DATA_DIR + "/ftpbd3.ftp.index","w")
+    count = 0
+    print("From server3.ftpbd.net/FTP-3: ")
+    ls(FTPBD3_URL,"/FTP-3")
+    print("Total " + str(count) + " items found.")
+    file.close()
+
+def ftpbd4():
+    global file
+    global count
+    file = open(DATA_DIR + "/ftpbd4.ftp.index","w")
+    count = 0
+    print("From server4.ftpbd.net/FTP-4: ")
+    ls(FTPBD4_URL,"/FTP-4")
+    print("Total " + str(count) + " items found.")
+    file.close()
+
+def ftpbd5():
+    global file
+    global count
+    file = open(DATA_DIR + "/ftpbd2.ftp.index","w")
+    count = 0
+    print("From server5.ftpbd.net/FTP-5: ")
+    ls(FTPBD5_URL,"/FTP-5")
+    print("Total " + str(count) + " items found.")
+    file.close()
+
+try:
+    timepassbd()
+    ftpbd2()
+    ftpbd3()
+    ftpbd4()
+    ftpbd5()
+except KeyboardInterrupt:
+    print("Bye.")

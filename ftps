@@ -1,0 +1,5 @@
+#! /bin/zsh
+
+source ~/.zshrc
+
+grep -E -e $1 index.ftp.txt | bat

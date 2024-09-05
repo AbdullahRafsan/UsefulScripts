@@ -12,7 +12,7 @@ try:
 except ModuleNotFoundError:
     ret = os.system("pip install bs4 tqdm requests")
     if ret != 0:
-        print("Running pip failed somehow. Please install 'tqdm', 'bs4' and 'requests' manually"
+        print("Running pip failed somehow. Please install 'tqdm', 'bs4' and 'requests' manually")
     print("Dependencies installed. please run again.")
     exit()
 
@@ -73,7 +73,7 @@ try:
 
     if sys.argv[1].startswith("http://ftp.timepassbd.live"):
         ls(sys.argv[1][26:])
-    elif sys.argv[1].startswith("/timepassbd-data")
+    elif sys.argv[1].startswith("/timepassbd-data"):
         ls(sys.argv[1])
     else:
         print("invalid url")

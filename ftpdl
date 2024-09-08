@@ -85,45 +85,37 @@ try:
         list_or_download(TIMEPASSBD_URL,sys.argv[1][26:])
     elif sys.argv[1].startswith("/timepassbd-data"):
         list_or_download(TIMEPASSBD_URL,sys.argv[1])
-    else:
-        print("Please give a valid url or path")
     
-    # Checks for ftpbd
-    if sys.argv[1].startswith(FTPBD1_URL):
+    # Checks for ftpbd 1
+    elif sys.argv[1].startswith(FTPBD1_URL):
         list_or_download(FTPBD1_URL,sys.argv[1][24:])
     elif sys.argv[1].startswith("/FTP-1"):
         list_or_download(FTPBD1_URL,sys.argv[1])
-    else:
-        print("Please give a valid url or path")
 
-    if sys.argv[1].startswith(FTPBD2_URL):
+    # Check for ftpbd 2
+    elif sys.argv[1].startswith(FTPBD2_URL):
         list_or_download(FTPBD2_URL,sys.argv[1][24:])
     elif sys.argv[1].startswith("/FTP-2"):
         list_or_download(FTPBD2_URL,sys.argv[1])
-    else:
-        print("Please give a valid url or path")
 
-    if sys.argv[1].startswith(FTPBD3_URL):
+    # Check for ftpbd 3
+    elif sys.argv[1].startswith(FTPBD3_URL):
         list_or_download(FTPBD3_URL,sys.argv[1][24:])
     elif sys.argv[1].startswith("/FTP-3"):
         list_or_download(FTPBD3_URL,sys.argv[1])
-    else:
-        print("Please give a valid url or path")
 
-    if sys.argv[1].startswith(FTPBD4_URL):
+    # Check for ftpbd 4
+    elif sys.argv[1].startswith(FTPBD4_URL):
         list_or_download(FTPBD4_URL,sys.argv[1][24:])
     elif sys.argv[1].startswith("/FTP-4"):
         list_or_download(FTPBD4_URL,sys.argv[1])
-    else:
-        print("Please give a valid url or path")
 
-    if sys.argv[1].startswith(FTPBD5_URL):
+    # Check for ftpbd 5
+    elif sys.argv[1].startswith(FTPBD5_URL):
         list_or_download(FTPBD5_URL,sys.argv[1][24:])
     elif sys.argv[1].startswith("/FTP-1"):
         list_or_download(FTPBD5_URL,sys.argv[1])
     else:
         print("Please give a valid url or path")
-
-
 except:
     print("Bye.")

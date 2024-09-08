@@ -2,4 +2,4 @@
 
 source ~/.zshrc
 
-grep -E -i -e $1 index.ftp.txt | bat
+grep -E -i -e $1 ~/.ftpdl/*.ftp.index | bat

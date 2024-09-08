@@ -8,7 +8,7 @@ import pathlib
 try:
     from tqdm import tqdm
     import requests
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, NavigableString
 except ModuleNotFoundError:
     ret = os.system("pip install bs4 tqdm requests")
     if ret != 0:
@@ -16,9 +16,17 @@ except ModuleNotFoundError:
     print("Dependencies installed. please run again.")
     exit()
 
-URL = "http://ftp.timepassbd.live"
+TIMEPASSBD_URL = "http://ftp.timepassbd.live"
+FTPBD1_URL = "http://server1.ftpbd.net"
+FTPBD2_URL = "http://server2.ftpbd.net"
+FTPBD3_URL = "http://server3.ftpbd.net"
+FTPBD4_URL = "http://server4.ftpbd.net"
+FTPBD5_URL = "http://server5.ftpbd.net"
+MOVIEHAAT_URL = "http://cdn2.moviehaat.net:8080/"
+DATA_DIR = os.getenv("HOME") + "/.ftpdl"
 
-def ls(path):
+# Logic for timepassbd anfd ftpbd
+def list_or_download(base_url,path):
     f = up.unquote_plus(path.split('/')[-2])
     print("creating: " + f)
     try:
@@ -29,7 +37,7 @@ def ls(path):
         print("You do not have enough permission to download files here. Bye.")
         exit(1)
     os.chdir(f)
-    data = requests.get(URL+path).text
+    data = requests.get(base_url+path).text
     soup = BeautifulSoup(data,'html.parser')
     table = soup.table
 
@@ -43,11 +51,11 @@ def ls(path):
                 if td.a != None:
                     item_url = td.a['href']
         if item_type == 'folder':
-            ls(item_url)
+            list_or_download(base_url,item_url)
             os.chdir("..")
         elif item_type == 'file':
             file_name = up.unquote_plus(item_url.split("/")[-1])
-            res = requests.get(URL+item_url,stream=True)
+            res = requests.get(base_url+item_url,stream=True)
             total_size = int(res.headers.get('content-length',0))
             block_size = 1024
             file = pathlib.Path(file_name)
@@ -66,16 +74,57 @@ def ls(path):
         else:    
             pass
 
+
 try:
     if len(sys.argv) < 2:
-        print("Need timepassbd url")
+        print("Need ftp url or path")
         exit()
 
-    if sys.argv[1].startswith("http://ftp.timepassbd.live"):
-        ls(sys.argv[1][26:])
+    # Checks for timepassbd
+    if sys.argv[1].startswith(TIMEPASSBD_URL):
+        list_or_download(TIMEPASSBD_URL,sys.argv[1][26:])
     elif sys.argv[1].startswith("/timepassbd-data"):
-        ls(sys.argv[1])
+        list_or_download(TIMEPASSBD_URL,sys.argv[1])
     else:
-        print("invalid url")
+        pass
+    
+    # Checks for ftpbd
+    if sys.argv[1].startswith(FTPBD1_URL):
+        list_or_download(FTPBD1_URL,sys.argv[1][24:])
+    elif sys.argv[1].startswith("/FTP-1"):
+        list_or_download(FTPBD1_URL,sys.argv[1])
+    else:
+        pass
+
+    if sys.argv[1].startswith(FTPBD2_URL):
+        list_or_download(FTPBD2_URL,sys.argv[1][24:])
+    elif sys.argv[1].startswith("/FTP-2"):
+        list_or_download(FTPBD2_URL,sys.argv[1])
+    else:
+        pass
+
+    if sys.argv[1].startswith(FTPBD3_URL):
+        list_or_download(FTPBD3_URL,sys.argv[1][24:])
+    elif sys.argv[1].startswith("/FTP-3"):
+        list_or_download(FTPBD3_URL,sys.argv[1])
+    else:
+        pass
+
+    if sys.argv[1].startswith(FTPBD4_URL):
+        list_or_download(FTPBD4_URL,sys.argv[1][24:])
+    elif sys.argv[1].startswith("/FTP-4"):
+        list_or_download(FTPBD4_URL,sys.argv[1])
+    else:
+        pass
+
+    if sys.argv[1].startswith(FTPBD5_URL):
+        list_or_download(FTPBD5_URL,sys.argv[1][24:])
+    elif sys.argv[1].startswith("/FTP-1"):
+        list_or_download(FTPBD5_URL,sys.argv[1])
+    else:
+        pass
+
+    print("Please give a valid url or path")
+
 except KeyboardInterrupt:
     print("Bye.")

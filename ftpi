@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import os
+import threading
 
 try:
     import requests
@@ -19,6 +20,11 @@ FTPBD4_URL = "http://server4.ftpbd.net"
 FTPBD5_URL = "http://server5.ftpbd.net"
 DATA_DIR = os.getenv("HOME") + "/.ftpdl"
 
+count = 0
+file = open(DATA_DIR+"/all.ftp.index","w")
+err_file = open(DATA_DIR+"/all.error","w")
+empty = open(DATA_DIR+"/all.empty","w")
+
 try:
     os.mkdir(DATA_DIR)
 except FileExistsError:
@@ -30,17 +36,24 @@ except OSError:
 def ls(base_url,path):
     global count
     global file
-    data = requests.get(base_url+path).text
-    soup = BeautifulSoup(data,'html.parser')
+    try:
+        data = requests.get(base_url+path).text
+        soup = BeautifulSoup(data,'html.parser')
+    except:
+        return
     table = soup.table
 
     if table == None:
+        empty.write(base_url + path + ": seems to have nothing\n")
         return
 
     for tr in table:
         item_type = ''
         item_url = ''
         for td in tr:
+            if isinstance(td,str):
+                err_file.write(base_url+path + " has prob\n")
+                continue
             if td.name == 'td':
                 if td.img != None:
                     item_type = td.img['alt']
@@ -51,77 +64,55 @@ def ls(base_url,path):
         elif item_type == 'file':
               count = count + 1
               print("indexed: " + str(count) + " item.",end="\r")
-              file.write(base_url+item_url+"\n")
+              try:
+                file.write(base_url+item_url+"\n")
+              except:
+                print("File write failed.")
         else:    
             pass
 
 def timepassbd():
     global file
     global count
-    file = open(DATA_DIR+"/timepassbd.ftp.index","w")
-    count = 0
     print("From ftp.timepassbd.live: ")
     ls(TIMEPASSBD_URL,"/")
-    print("Total " + str(count) + " items found.")
-    file.close()
 
 def ftpbd2():
     global file
     global count
-    file = open(DATA_DIR + "/ftpbd2.ftp.index","w")
-    count = 0
     print("From server2.ftpbd.net/FTP-2: ")
     ls(FTPBD2_URL,"/FTP-2")
-    print("Total " + str(count) + " items found.")
-    file.close()
 
 def ftpbd3():
     global file
     global count
-    file = open(DATA_DIR + "/ftpbd3.ftp.index","w")
-    count = 0
     print("From server3.ftpbd.net/FTP-3: ")
     ls(FTPBD3_URL,"/FTP-3")
-    print("Total " + str(count) + " items found.")
-    file.close()
 
 def ftpbd4():
     global file
     global count
-    file = open(DATA_DIR + "/ftpbd4.ftp.index","w")
-    count = 0
     print("From server4.ftpbd.net/FTP-4: ")
-    ls(FTPBD4_URL,"/FTP-4")
-    print("Total " + str(count) + " items found.")
-    file.close()
+    ls(FTPBD4_URL,"/FTP-4/Tutorial")
 
 def ftpbd5():
     global file
     global count
-    file = open(DATA_DIR + "/ftpbd2.ftp.index","w")
-    count = 0
     print("From server5.ftpbd.net/FTP-5: ")
     ls(FTPBD5_URL,"/FTP-5")
-    print("Total " + str(count) + " items found.")
-    file.close()
 
-try:
-    timepassbd()
-except:
-    print("Bye.")
-try:
-    ftpbd2()
-except:
-    print("Bye.")
-try:
-    ftpbd3()
-except:
-    print("Bye.")
-try:
-    ftpbd4()
-except:
-    print("Bye.")
-try:
-    ftpbd5()
-except:
-    print("Bye.")
+a = threading.Thread(target=timepassbd).start()
+b = threading.Thread(target=ftpbd2).start()
+c = threading.Thread(target=ftpbd3).start()
+d = threading.Thread(target=ftpbd4).start()
+e = threading.Thread(target=ftpbd5).start()
+# timepassbd()
+# ftpbd2()
+# ftpbd3()
+# ftpbd4()
+# ftpbd5()
+a.join()
+b.join()
+c.join()
+d.join()
+e.join()

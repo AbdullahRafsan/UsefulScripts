@@ -49427,7 +49427,8 @@ function ls$1(file_path_for_listing = "~") {
 //File upload
 const upload_storage_multer = multer.diskStorage({
   destination: function (req, res, cb) {
-    cb(null, req.place);
+    const { place } = req.body;
+    cb(null, place);
   },
   filename: function (_req, file, cb) {
     cb(null, file.originalname);
@@ -49436,10 +49437,6 @@ const upload_storage_multer = multer.diskStorage({
 const upload$1 = multer({
   storage: upload_storage_multer,
 });
-const multer_pwd_midware$1 = (req, res, next) => {
-  req.place = process.env.RfsPwd;
-  next();
-};
 
 var RfsUtil = {
   ls: ls$1,
@@ -49516,7 +49513,7 @@ var RfsServer = {
 
 const express = express$1;
 const cors = libExports;
-const { ls, multer_pwd_midware, upload } = RfsUtil;
+const { ls,  upload } = RfsUtil;
 const {
   prep_server,
   run_stat,
@@ -49563,7 +49560,7 @@ app.get("/api/file", (req, res) => {
   else res.status(404).send("Requested item not found");
 });
 
-app.post("/api/upload", multer_pwd_midware, upload.array("file"), (_req, res) => {
+app.post("/api/upload", upload.array("file"), (_req, res) => {
   res.send("200");
 });
 

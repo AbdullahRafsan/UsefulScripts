@@ -49427,8 +49427,8 @@ function ls$1(file_path_for_listing = "~") {
 //File upload
 const upload_storage_multer = multer.diskStorage({
   destination: function (req, res, cb) {
-    const { place } = req.body;
-    cb(null, place);
+    //const { place } = req.body;
+    cb(null, process.env.RfsPwd);
   },
   filename: function (_req, file, cb) {
     cb(null, file.originalname);

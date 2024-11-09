@@ -49441,7 +49441,6 @@ const upload$1 = multer({
 var RfsUtil = {
   ls: ls$1,
   upload: upload$1,
-  multer_pwd_midware: multer_pwd_midware$1,
 };
 
 const { homedir, networkInterfaces } = require$$0$c;
@@ -49539,6 +49538,11 @@ check_port(process.env.PORT);
 
 app.listen(process.env.PORT, run_stat);
 
+app.get("/ui/*",(req,res) => {
+	console.log(process.argv0)
+	res.sendFile("/Users/rafsan/.bin/"+req.params[0])
+})
+
 app.get("/api/dir", (req, res) => {
   let dir_listing = ls(req.query.location ?? process.env.RfsPwd);
   if (dir_listing instanceof Error) {
@@ -49554,8 +49558,9 @@ app.get("/api/dir", (req, res) => {
   }
 });
 
-app.get("/api/file", (req, res) => {
-  let file = parse_path(req.query.file_path);
+app.get("/api/file/*", (req, res) => {
+	console.log(req.params[0])
+  let file = parse_path(req.params[0]);
   if (existsSync(file)) res.sendFile(file);
   else res.status(404).send("Requested item not found");
 });

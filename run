@@ -10,7 +10,7 @@ then
   exit
 fi
 
-format=`echo $1 | cut -d "." -f 2 -s`
+format=$(echo "$1" | cut -d "." -f 2 -s)
 
 if [[ $format = "" ]]
 then
@@ -18,7 +18,7 @@ then
   exit
 fi
 
-output=`echo $1 | cut -s -d "." -f 1`
+output=$(echo "$1" | cut -s -d "." -f 1)
 
 if [[ $format = "c" ]]
 then
@@ -31,19 +31,19 @@ then
   command="$command_java"
 fi
 
-$command $1
+# $command $1
 
-if [[ $? -eq 0 ]]
+if $command "$1"
 then
   echo -e "\033[33mRunning: $output\033[0m"
   if [[ $format != "java" && $TERMUX_VERSION ]]
   then
-    termux-elf-cleaner $output > /dev/null 2>&1
+    termux-elf-cleaner "$output" > /dev/null 2>&1
   fi
   if [[ $format = "java" ]]
   then
-    java $output
+    java "$output"
   else
-    ./$output
+    ./"$output"
   fi
 fi

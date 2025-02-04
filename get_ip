@@ -1,12 +1,12 @@
 #! /bin/bash
 
-INTERFACES=`ifconfig -l -u`
+INTERFACES=$(ifconfig -l -u)
 
 for i in $INTERFACES
 do
-    IFCFG=`ifconfig $i`
-    IP4=`echo $IFCFG | grep -E -o "inet [0-9]{0,3}\.[0-9]{0,3}\.[0-9]{0,3}\.[0-9]{0,3}" | sed -e "s/inet//g"`
-    IP6=`echo $IFCFG | grep -E -o "inet6 [[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}" | sed -e "s/inet6//g"`
+    IFCFG=$(ifconfig "$i")
+    IP4=$(echo "$IFCFG" | grep -E -o "inet [0-9]{0,3}\.[0-9]{0,3}\.[0-9]{0,3}\.[0-9]{0,3}" | sed -e "s/inet//g")
+    IP6=$(echo "$IFCFG" | grep -E -o "inet6 [[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}:[[:alnum:]]{0,4}" | sed -e "s/inet6//g")
 
 
     if [[ $IP4 != "" || $IP6 != "" ]]

@@ -5,6 +5,9 @@ import sys
 import urllib.parse as up
 import pathlib
 
+USE_ARIA = os.system("aria2c -v") == 0
+os.system("clear")
+
 try:
     from tqdm import tqdm
     import requests
@@ -55,18 +58,27 @@ def list_or_download(base_url,path):
             os.chdir("..")
         elif item_type == 'file':
             file_name = up.unquote_plus(item_url.split("/")[-1])
-            res = requests.get(base_url+item_url,stream=True)
-            total_size = int(res.headers.get('content-length',0))
-            block_size = 1024
-            file = pathlib.Path(file_name)
+            file_uri = base_url+item_url
             print("Downloading: " + file_name)
-            with tqdm(total=total_size, unit="B",unit_scale=True,colour='GREEN') as pbar:
-                with open(file_name, "wb") as file:
-                    for data in res.iter_content(block_size):
-                        pbar.update(len(data))
-                        file.write(data)
-            if total_size != 0 and pbar.n != total_size:
-                print("Download failed.")
+            if USE_ARIA:
+                stat = os.system("aria2c -x 1 --auto-file-renaming=false --console-log-level=error " + file_uri)
+                print(stat)
+                if stat == 1792:
+                    exit(stat)
+            else:
+                print("FILE_URI: " + file_uri)
+                res = requests.get(file_uri,stream=True)
+                total_size = int(res.headers.get('content-length',0))
+                block_size = 1024
+                # file = pathlib.Path(file_name)
+                # print("FILE: " + file)
+                with tqdm(total=total_size, unit="B",unit_scale=True,colour='GREEN') as pbar:
+                    with open(file_name, "wb") as file:
+                        for data in res.iter_content(block_size):
+                            pbar.update(len(data))
+                            file.write(data)
+                if total_size != 0 and pbar.n != total_size:
+                    print("Download failed.")
         else:    
             pass
 

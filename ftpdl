@@ -2,8 +2,10 @@
 
 import os
 import sys
+from typing import Self
 import urllib.parse as up
-import pathlib
+import traceback
+from enum import Enum
 
 try:
     from tqdm import tqdm
@@ -22,96 +24,147 @@ FTPBD2_URL = "http://server2.ftpbd.net"
 FTPBD3_URL = "http://server3.ftpbd.net"
 FTPBD4_URL = "http://server4.ftpbd.net"
 FTPBD5_URL = "http://server5.ftpbd.net"
-MOVIEHAAT_URL = "http://cdn2.moviehaat.net:8080/"
+FMFTP_URL = "https://fmftp.net"
 DATA_DIR = os.getenv("HOME") + "/.ftpdl"
 
-# Logic for timepassbd anfd ftpbd
-def list_or_download(base_url,path):
-    f = up.unquote_plus(path.split('/')[-2])
-    print("creating: " + f)
-    try:
-        os.mkdir(f)
-    except FileExistsError:
-        print("Folder ready. Proceeding.")
-    except PermissionError:
-        print("You do not have enough permission to download files here. Bye.")
-        exit(1)
-    os.chdir(f)
-    data = requests.get(base_url+path).text
+if not os.path.exists(DATA_DIR):
+    os.mkdir(DATA_DIR)
+
+# a class to hold item data
+class FTPType(Enum):
+    FILE = 0
+    FOLDER = 1
+
+    @classmethod
+    def getType(self, url: str) -> Self:
+        if url.endswith('/'):
+            return self.FOLDER
+        else:
+            return self.FILE
+
+
+class FTPItem:
+    name: str
+    url: str
+    type: FTPType
+
+    def __init__(self: Self, url: str) -> Self:
+        self.url = url
+        self.type = FTPType.getType(url)
+        if self.type == FTPType.FILE:
+            self.name = up.unquote_plus(url.split('/')[-1])
+        else:
+            self.name = up.unquote_plus(url.split('/')[-2])
+    
+    def __str__(self):
+        return f"{self.name} is a {self.type}"
+
+def not_implemented():
+    print("Feature not yet implemented !")
+    exit(0)
+
+def timepassbd_ftpbd_list_logic(base_url: str, url: str) -> list[FTPItem]:
+    itemList = []
+    data = requests.get(url).text
     soup = BeautifulSoup(data,'html.parser')
     table = soup.table
-
     for tr in table:
-        item_type = ''
-        item_url = ''
         for td in tr:
             if td.name == 'td':
-                if td.img != None:
-                    item_type = td.img['alt']
                 if td.a != None:
-                    item_url = td.a['href']
-        if item_type == 'folder':
-            list_or_download(base_url,item_url)
-            os.chdir("..")
-        elif item_type == 'file':
-            file_name = up.unquote_plus(item_url.split("/")[-1])
-            res = requests.get(base_url+item_url,stream=True)
-            total_size = int(res.headers.get('content-length',0))
-            block_size = 1024
-            file = pathlib.Path(file_name)
-            print("Downloading: " + file_name)
-            with tqdm(total=total_size, unit="B",unit_scale=True,colour='GREEN') as pbar:
-                with open(file_name, "wb") as file:
-                    for data in res.iter_content(block_size):
-                        pbar.update(len(data))
-                        file.write(data)
-            if total_size != 0 and pbar.n != total_size:
-                print("Download failed.")
-        else:    
-            pass
+                    path = td.a["href"]
+                    if path != "..":
+                        final_url = f"{base_url}{td.a['href']}"
+                        itemList.append(FTPItem(final_url))
+    return itemList
 
+def fmftp_logic(url: str) -> list[FTPItem]:
+    itemList = []
+    data = requests.get(url).text
+    soup = BeautifulSoup(data,'html.parser')
+    pre = soup.find("pre")
+    path = soup.find("h1").text[9:]
+    print(path)
+    for a in pre:
+        if isinstance(a, NavigableString):
+            continue
+        it = FTPItem(f"{FMFTP_URL}{path}{a['href']}")
+        if it.name != "..":
+            itemList.append(it)
+    for i in itemList:
+        print(f"{i.name}: {i.type}")
+    return itemList
+
+# a function that makes folder list
+def itemList(url: str) -> list[FTPItem]:
+    i = FTPItem(url)
+    print(f"Creating {i.name}")
+    if not os.path.exists(i.name):
+        os.mkdir(i.name)
+    print(f"Entering {i.name}")
+    os.chdir(i.name)
+
+    if url.startswith(TIMEPASSBD_URL):
+        return timepassbd_ftpbd_list_logic(TIMEPASSBD_URL, url)
+    elif url.startswith(FTPBD1_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD1_URL, url)
+    elif url.startswith(FTPBD2_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD2_URL, url)
+    elif url.startswith(FTPBD3_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD3_URL, url)
+    elif url.startswith(FTPBD4_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD4_URL, url)
+    elif url.startswith(FTPBD5_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD5_URL, url)
+    elif url.startswith(FMFTP_URL):
+        return fmftp_logic(url)
+    else:
+        not_implemented()
+
+    os.chdir("..")
+    return itemList
+
+
+# Logic for timepassbd anfd ftpbd
+def download(item: FTPItem):
+    file_name = item.name
+    res = requests.get(item.url,stream=True)
+    total_size = int(res.headers.get('content-length',0))
+    block_size = 1024
+    print("Downloading: " + file_name)
+    with tqdm(total=total_size, unit="B",unit_scale=True,colour='RED') as pbar:
+        with open(file_name, "wb") as file:
+            for data in res.iter_content(block_size):
+                pbar.update(len(data))
+                file.write(data)
+    if total_size != 0 and pbar.n != total_size:
+        print("Download failed.")
+
+# process everything inside
+def process(url: str):
+    it = FTPItem(url)
+    if it.type == FTPType.FILE:
+        download(it)
+    else:
+        for item in itemList(url):
+            process(item.url)
+
+# game begins
+if len(sys.argv) < 2:
+    print("Need ftp url or path")
+    exit()
 
 try:
-    if len(sys.argv) < 2:
-        print("Need ftp url or path")
-        exit()
-
-    # Checks for timepassbd
-    if sys.argv[1].startswith(TIMEPASSBD_URL):
-        list_or_download(TIMEPASSBD_URL,sys.argv[1][26:])
-    elif sys.argv[1].startswith("/timepassbd-data"):
-        list_or_download(TIMEPASSBD_URL,sys.argv[1])
-    
-    # Checks for ftpbd 1
-    elif sys.argv[1].startswith(FTPBD1_URL):
-        list_or_download(FTPBD1_URL,sys.argv[1][24:])
-    elif sys.argv[1].startswith("/FTP-1"):
-        list_or_download(FTPBD1_URL,sys.argv[1])
-
-    # Check for ftpbd 2
-    elif sys.argv[1].startswith(FTPBD2_URL):
-        list_or_download(FTPBD2_URL,sys.argv[1][24:])
-    elif sys.argv[1].startswith("/FTP-2"):
-        list_or_download(FTPBD2_URL,sys.argv[1])
-
-    # Check for ftpbd 3
-    elif sys.argv[1].startswith(FTPBD3_URL):
-        list_or_download(FTPBD3_URL,sys.argv[1][24:])
-    elif sys.argv[1].startswith("/FTP-3"):
-        list_or_download(FTPBD3_URL,sys.argv[1])
-
-    # Check for ftpbd 4
-    elif sys.argv[1].startswith(FTPBD4_URL):
-        list_or_download(FTPBD4_URL,sys.argv[1][24:])
-    elif sys.argv[1].startswith("/FTP-4"):
-        list_or_download(FTPBD4_URL,sys.argv[1])
-
-    # Check for ftpbd 5
-    elif sys.argv[1].startswith(FTPBD5_URL):
-        list_or_download(FTPBD5_URL,sys.argv[1][24:])
-    elif sys.argv[1].startswith("/FTP-1"):
-        list_or_download(FTPBD5_URL,sys.argv[1])
-    else:
-        print("Please give a valid url or path")
-except:
-    print("Bye.")
+    start = sys.argv[1]
+    # start = "https://fmftp.net/Data/tvseries/abcd/2022/Katakuti%20%282022%29/"
+    process(start)
+except KeyboardInterrupt:
+    print("User terminated.")
+    exit(0)
+except Exception as e:
+    print("Some error occured. See the log file.")
+    log = open(f"{DATA_DIR}/ftpdl.err.log", "w")
+    log.write(f"{e}\n\n")
+    log.write(f"{traceback.format_exc()}")
+    log.close()
+    exit(1)

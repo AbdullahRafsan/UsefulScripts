@@ -1,11 +1,7 @@
 #! /usr/bin/env python3
-
 import sys
-if len(sys.argv) < 2:
-    print("Need ftp url or path")
-    exit()
-
 import os
+import datetime
 from typing import Self
 import urllib.parse as up
 import traceback
@@ -36,6 +32,8 @@ FTPBD4_URL = "http://server4.ftpbd.net"
 FTPBD5_URL = "http://server5.ftpbd.net"
 FMFTP_URL = "https://fmftp.net"
 DATA_DIR = os.getenv("HOME") + "/.ftpdl"
+date = datetime.datetime.now().strftime("%Y-%m-%d.T%H-%M")
+log = open(f"{DATA_DIR}/ftpdl.{date}.err.log", "w")
 
 if not os.path.exists(DATA_DIR):
     os.mkdir(DATA_DIR)
@@ -171,7 +169,6 @@ def process(url: str):
     if i.type == FTPType.FILE:
         download(i)
     else:
-        
         if not os.path.exists(i.name):
             print(f"Creating {i.name}")
             os.mkdir(i.name)
@@ -187,15 +184,38 @@ def process(url: str):
 
 
 # game begins
-try:
-    process(sys.argv[1])
-except KeyboardInterrupt:
-    print("User terminated.")
+
+if len(sys.argv) < 2:
+    if os.path.exists("ftpdl.link"):
+        link_file = open("ftpdl.link", "r")
+        for line in link_file:
+            try:
+                process(line.strip())
+            except KeyboardInterrupt:
+                print("User terminated.")
+                exit(0)
+            except Exception as e:
+                print("Some error occured. See the log file.")
+                log.write(f"{e}\n\n")
+                log.write(f"{traceback.format_exc()}")
+                log.close()
+                exit(1)
+        exit(0)
+    else:
+        print("Please create a ftpdl.link file or provide a URL.")
+        exit(1)
+elif len(sys.argv) == 2:
+    try:
+        process(sys.argv[1])
+    except KeyboardInterrupt:
+        print("User terminated.")
+        exit(0)
+    except Exception as e:
+        print("Some error occured. See the log file.")
+        log.write(f"{e}\n\n")
+        log.write(f"{traceback.format_exc()}")
+        log.close()
+        exit(1)
+else:
+    print("Need ftp url or path")
     exit(0)
-except Exception as e:
-    print("Some error occured. See the log file.")
-    log = open(f"{DATA_DIR}/ftpdl.err.log", "w")
-    log.write(f"{e}\n\n")
-    log.write(f"{traceback.format_exc()}")
-    log.close()
-    exit(1)

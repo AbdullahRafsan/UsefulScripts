@@ -142,16 +142,13 @@ def download(item: FTPItem):
             return
 
         res.close()
-        print(f"{file_size} {total_size}")
         res2 = requests.get(item.url, stream=True, headers={"Range": f"bytes={file_size}-{total_size}"})
         resume = True
-        print(res2.headers.get('Range'))
     else:
         file = open(file_name, "wb+")
 
     block_size = 8192
     if resume:
-        print(res2.headers.get('Range'))
         print("Resuming: " + file_name)
         with tqdm(initial=file_size, total=total_size, unit="B", unit_scale=True, colour='RED') as pbar:
             for data in res2.iter_content(block_size):

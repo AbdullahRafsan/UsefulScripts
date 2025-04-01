@@ -1,7 +1,11 @@
 #! /usr/bin/env python3
 
-import os
 import sys
+if len(sys.argv) < 2:
+    print("Need ftp url or path")
+    exit()
+
+import os
 from typing import Self
 import urllib.parse as up
 import traceback
@@ -12,11 +16,17 @@ try:
     import requests
     from bs4 import BeautifulSoup, NavigableString
 except:
-    ret = os.system("pip install bs4 tqdm requests")
+    print("Installing dependencies.")
+    ret = os.system("pip3 install bs4 tqdm requests")
     if ret != 0:
-        print("Running pip failed somehow. Please install 'tqdm', 'bs4' and 'requests' manually")
-    print("Dependencies installed. please run again.")
-    exit()
+        print("pip3 failed. Trying pip instead.")
+        ret2 = os.system("pip install bs4 tqdm requests")
+        if ret2 != 0:
+            print("Running pip failed somehow. Please install 'tqdm', 'bs4' and 'requests' manually")
+            exit()
+    from tqdm import tqdm
+    import requests
+    from bs4 import BeautifulSoup, NavigableString
 
 TIMEPASSBD_URL = "http://ftp.timepassbd.live"
 FTPBD1_URL = "http://server1.ftpbd.net"
@@ -95,11 +105,15 @@ def fmftp_logic(url: str) -> list[FTPItem]:
         print(f"{i.name}: {i.type}")
     return itemList
 
+
+# a function that makes folder tree
+
+
 # a function that makes folder list
-def itemList(url: str) -> list[FTPItem]:
+def makeList(url: str) -> list[FTPItem]:
     i = FTPItem(url)
-    print(f"Creating {i.name}")
     if not os.path.exists(i.name):
+        print(f"Creating {i.name}")
         os.mkdir(i.name)
     print(f"Entering {i.name}")
     os.chdir(i.name)
@@ -122,16 +136,21 @@ def itemList(url: str) -> list[FTPItem]:
         not_implemented()
 
     os.chdir("..")
-    return itemList
+    return makeList
 
 
 # Logic for timepassbd anfd ftpbd
 def download(item: FTPItem):
     file_name = item.name
-    res = requests.get(item.url,stream=True)
+    res = requests.get(item.url, stream=True)
     total_size = int(res.headers.get('content-length',0))
-    block_size = 1024
+    block_size = 8192
     print("Downloading: " + file_name)
+    if os.path.exists(file_name):
+        if os.path.getsize(file_name) == total_size:
+            print("File exists.")
+            return
+    
     with tqdm(total=total_size, unit="B",unit_scale=True,colour='RED') as pbar:
         with open(file_name, "wb") as file:
             for data in res.iter_content(block_size):
@@ -146,17 +165,12 @@ def process(url: str):
     if it.type == FTPType.FILE:
         download(it)
     else:
-        for item in itemList(url):
+        for item in makeList(url):
             process(item.url)
 
 # game begins
-if len(sys.argv) < 2:
-    print("Need ftp url or path")
-    exit()
-
 try:
     start = sys.argv[1]
-    # start = "https://fmftp.net/Data/tvseries/abcd/2022/Katakuti%20%282022%29/"
     process(start)
 except KeyboardInterrupt:
     print("User terminated.")

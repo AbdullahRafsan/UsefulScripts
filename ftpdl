@@ -52,7 +52,6 @@ class FTPType(Enum):
         else:
             return self.FILE
 
-
 class FTPItem:
     name: str
     url: str
@@ -94,15 +93,12 @@ def fmftp_logic(url: str) -> list[FTPItem]:
     soup = BeautifulSoup(data,'html.parser')
     pre = soup.find("pre")
     path = soup.find("h1").text[9:]
-    print(path)
     for a in pre:
         if isinstance(a, NavigableString):
             continue
         it = FTPItem(f"{FMFTP_URL}{path}{a['href']}")
         if it.name != "..":
             itemList.append(it)
-    for i in itemList:
-        print(f"{i.name}: {i.type}")
     return itemList
 
 
@@ -110,33 +106,24 @@ def fmftp_logic(url: str) -> list[FTPItem]:
 
 
 # a function that makes folder list
-def makeList(url: str) -> list[FTPItem]:
-    i = FTPItem(url)
-    if not os.path.exists(i.name):
-        print(f"Creating {i.name}")
-        os.mkdir(i.name)
-    print(f"Entering {i.name}")
-    os.chdir(i.name)
-
-    if url.startswith(TIMEPASSBD_URL):
-        return timepassbd_ftpbd_list_logic(TIMEPASSBD_URL, url)
-    elif url.startswith(FTPBD1_URL):
-        return timepassbd_ftpbd_list_logic(FTPBD1_URL, url)
-    elif url.startswith(FTPBD2_URL):
-        return timepassbd_ftpbd_list_logic(FTPBD2_URL, url)
-    elif url.startswith(FTPBD3_URL):
-        return timepassbd_ftpbd_list_logic(FTPBD3_URL, url)
-    elif url.startswith(FTPBD4_URL):
-        return timepassbd_ftpbd_list_logic(FTPBD4_URL, url)
-    elif url.startswith(FTPBD5_URL):
-        return timepassbd_ftpbd_list_logic(FTPBD5_URL, url)
-    elif url.startswith(FMFTP_URL):
-        return fmftp_logic(url)
+def makeList(i: FTPItem) -> list[FTPItem]:   
+    if i.url.startswith(TIMEPASSBD_URL):
+        return timepassbd_ftpbd_list_logic(TIMEPASSBD_URL, i.url)
+    elif i.url.startswith(FTPBD1_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD1_URL, i.url)
+    elif i.url.startswith(FTPBD2_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD2_URL, i.url)
+    elif i.url.startswith(FTPBD3_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD3_URL, i.url)
+    elif i.url.startswith(FTPBD4_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD4_URL, i.url)
+    elif i.url.startswith(FTPBD5_URL):
+        return timepassbd_ftpbd_list_logic(FTPBD5_URL, i.url)
+    elif i.url.startswith(FMFTP_URL):
+        return fmftp_logic(i.url)
     else:
         not_implemented()
 
-    os.chdir("..")
-    return makeList
 
 
 # Logic for timepassbd anfd ftpbd
@@ -144,34 +131,67 @@ def download(item: FTPItem):
     file_name = item.name
     res = requests.get(item.url, stream=True)
     total_size = int(res.headers.get('content-length',0))
-    block_size = 8192
-    print("Downloading: " + file_name)
+    resume = False
     if os.path.exists(file_name):
-        if os.path.getsize(file_name) == total_size:
-            print("File exists.")
+        file = open(file_name, "rb+")
+        file.seek(0,2)
+        file_size = file.tell()
+        # file.seek(0,0)
+        if file_size == total_size:
+            print(f"{file_name}: File exists.")
             return
-    
-    with tqdm(total=total_size, unit="B",unit_scale=True,colour='RED') as pbar:
-        with open(file_name, "wb") as file:
+
+        res.close()
+        print(f"{file_size} {total_size}")
+        res2 = requests.get(item.url, stream=True, headers={"Range": f"bytes={file_size}-{total_size}"})
+        resume = True
+        print(res2.headers.get('Range'))
+    else:
+        file = open(file_name, "wb+")
+
+    block_size = 8192
+    if resume:
+        print(res2.headers.get('Range'))
+        print("Resuming: " + file_name)
+        with tqdm(initial=file_size, total=total_size, unit="B", unit_scale=True, colour='RED') as pbar:
+            for data in res2.iter_content(block_size):
+                pbar.update(len(data))
+                file.write(data)
+    else:
+        print("Downloading: " + file_name)
+        with tqdm(total=total_size, unit="B", unit_scale=True, colour='RED') as pbar:
             for data in res.iter_content(block_size):
                 pbar.update(len(data))
                 file.write(data)
+    
+    file.close()
     if total_size != 0 and pbar.n != total_size:
         print("Download failed.")
 
 # process everything inside
 def process(url: str):
-    it = FTPItem(url)
-    if it.type == FTPType.FILE:
-        download(it)
+    i = FTPItem(url)
+    if i.type == FTPType.FILE:
+        download(i)
     else:
-        for item in makeList(url):
+        
+        if not os.path.exists(i.name):
+            print(f"Creating {i.name}")
+            os.mkdir(i.name)
+
+        print(f"Entering {i.name}")
+        os.chdir(i.name)
+        
+        for item in makeList(i):
             process(item.url)
+        
+        print("Going back")
+        os.chdir("..")
+
 
 # game begins
 try:
-    start = sys.argv[1]
-    process(start)
+    process(sys.argv[1])
 except KeyboardInterrupt:
     print("User terminated.")
     exit(0)

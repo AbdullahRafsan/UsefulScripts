@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+
+import requests
+import sys
+
+def fatal():
+    print("Usage: truelookup 01xxxxxxxxx")
+    exit()
+
+if len(sys.argv) < 2:
+    fatal()
+
+number = sys.argv[1][1:]
+if len(number) != 10:
+    fatal()
+
+url = "https://asia-south1-truecaller-web.cloudfunctions.net/webapi/noneu/search/v2"
+
+querystring = {"q":number,"countryCode":"bd","type":"44"}
+
+payload = ""
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ2NjQ1MTU0OTMsInRva2VuIjoiYTF3MEgtLXY1Tk9KZS1hRnhKTWZERlhheGwyaTYxQkI4VFVNMmVnV2NncmRtVk9ISjdLTDlIcVQwN25COGhGTSIsImNvdW50cnlDb2RlIjoiYmQiLCJuYW1lIjoiQWJkdWxsYWggUmFmc2FuIiwiaW1hZ2UiOiJodHRwczovL2ltYWdlcy1ub25ldS50cnVlY2FsbGVyc3RhdGljLmNvbS9teXZpZXcvMi8wZjcwODM0MzQxZDA5NWRkZjFmY2Y1YzExN2ZlNTczNC8zIiwiaXNBcHBBY2NvdW50Ijp0cnVlLCJpYXQiOjE3NTE5ODYxMTV9.FSz1Zbsv6pQNyyPPrJoul9tRn_kvNr-cHVwG1jAZzG0",
+    "User-Agent": "truelookup/1.0.0"
+}
+
+response = requests.request("GET", url, data=payload, headers=headers, params=querystring)
+
+data = response.json()
+
+if data is None:
+    fatal()
+
+name = data.get("name")
+phones = data.get("phones")
+internetAddresses = data.get("internetAddresses")
+
+if name is None:
+    fatal()
+
+if phones is None:
+    fatal()
+
+if internetAddresses is None:
+    fatal()
+
+print(f"Name: {name}")
+print("Phone numbers:")
+for num in phones:
+    print(num.get("nationalFormat"))
+print("Internet addresses:")
+for ia in internetAddresses:
+        print(f"{ia.get("service")}: {ia.get("id")}")

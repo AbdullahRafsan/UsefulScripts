@@ -1,11 +1,15 @@
 #! /usr/bin/env python3
+
 import sys
 import os
+import re
 import datetime
 from typing import Self
 import urllib.parse as up
 import traceback
 from enum import Enum
+
+FMSearchRegex = re.compile("""href=["'].+["']""", re.IGNORECASE)
 
 # Dependency Init
 try:
@@ -87,18 +91,28 @@ def timepassbd_logic(url: str) -> list[FTPItem]:
     return itemList
 
 def fmftp_logic(url: str) -> list[FTPItem]:
+    global FMSearchRegex
     itemList = []
     data = requests.get(url).text
-    soup = BeautifulSoup(data,'html.parser')
-    pre = soup.find("pre")
-    path = soup.find("h1").text[9:]
-    for a in pre:
-        if isinstance(a, NavigableString):
-            continue
-        it = FTPItem(f"{FMFTP_URL}{path}{a['href']}")
-        if it.name != "..":
-            # print(f"Adding: {it.name}")
-            itemList.append(it)
+    data = FMSearchRegex.findall(data)
+    for item in data:
+        item = item[6:-1]
+        if item[:-1] != "..":
+            itemList.append(FTPItem(url+item))
+        # yay
+
+    # href=["'].+["']
+    # <a href='indianbangla/'>indianbangla/</a>
+    # soup = BeautifulSoup(data,'html.parser')
+    # pre = soup.find("pre")
+    # path = soup.find("h1").text[9:]
+    # for a in pre:
+    #     if isinstance(a, NavigableString):
+    #         continue
+    #     it = FTPItem(f"{FMFTP_URL}{path}{a['href']}")
+    #     if it.name != "..":
+    #         # print(f"Adding: {it.name}")
+    #         itemList.append(it)
     return itemList
 
 
@@ -155,39 +169,74 @@ def download(item: FTPItem):
     if total_size != 0 and pbar.n != total_size:
         print("Download failed.")
 
-def do_search(item: FTPItem, sk: str):
+def do_search(item: FTPItem, sk: str) -> bool:
     if item.name.lower().__contains__(sk.lower()):
+        print()
         print()
         print(f"Found: {item.name}")
         print(f"At: {item.url}")
         print()
+        print()
+        return True
+    return False
 
 # process everything inside
 def process(url: str, search: bool, keyw: str = ""):
     i = FTPItem(url)
-    if i.type == FTPType.FILE:
-        if search:
-            do_search(i, keyw)
+
+    if search:
+        if i.type == FTPType.FOLDER:
+            print(f"\033[KSearching: {i.name[:40]}", end="\r")
+            if do_search(i, keyw):
+                return
+            else:
+                for item in makeList(i):
+                    process(item.url, search, keyw)
         else:
-            download(i)
+            if do_search(i, keyw):
+                return
+
     else:
-        if not search:
+        if i.type == FTPType.FILE:
+            download(i)
+        else:
             if not os.path.exists(i.name):
                 print(f"Creating {i.name}")
                 os.mkdir(i.name)
 
             print(f"Entering {i.name}")
             os.chdir(i.name)
-        
-        if search:
-                print(f"\033[KSearching: {i.name}", end="\r")
 
-        for item in makeList(i):
-            process(item.url, search, keyw)
-        
-        if not search:
+            for item in makeList(i):
+                process(item.url, search, keyw)
             print("Going back")
             os.chdir("..")
+
+
+    # if i.type == FTPType.FILE:
+    #     if search:
+    #         do_search(i, keyw)
+    #     else:
+    #         download(i)
+    # else:
+    #     if not search:
+    #         if not os.path.exists(i.name):
+    #             print(f"Creating {i.name}")
+    #             os.mkdir(i.name)
+
+    #         print(f"Entering {i.name}")
+    #         os.chdir(i.name)
+        
+        # if search:
+        #     print(f"\033[KSearching: {i.name[:40]}", end="\r")
+
+        # for item in makeList(i):
+        #     process(item.url, search, keyw)
+        
+        # if not search:
+        #     print("Going back")
+        #     os.chdir("..")
+
 
 
 def main(url, search, keyw):
@@ -220,7 +269,7 @@ arg = parser.parse_args()
 
 if arg.search:
     if arg.url:
-        print(f"searching in: {arg.url}")
+        print(f"searching in: {FTPItem(arg.url).name}")
         main(arg.url, True, arg.search)
     else:
         print("Searching TimepassBD")
@@ -231,14 +280,14 @@ if arg.search:
     exit()
 
 if arg.url:
-    main(arg.url, False)
+    main(arg.url, False, "")
     exit()
 
 
 if os.path.exists("ftpdl.link"):
     link_file = open("ftpdl.link", "r")
     for line in link_file:
-        main(line, False)
+        main(line, False, "")
     exit(0)
 else:
     print("Please create a ftpdl.link file or provide a URL.")

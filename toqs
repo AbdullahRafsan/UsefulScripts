@@ -1,0 +1,26 @@
+#! /bin/bash
+
+for file in "$@"; do
+    TARGET_DIR=$(dirname "$file")
+    FILENAME=$(basename "$file")
+    FILENAME_WE=$(basename "$file" .${FILENAME##*.})
+    VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$TARGET_DIR/$FILENAME")
+    AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$TARGET_DIR/$FILENAME")
+
+    if [[ "$VIDEO_CODEC" == "h264" ]]; then
+        VIDEO_CODEC="copy"
+    else
+        VIDEO_CODEC="hevc_videotoolbox"
+        VIDEO_OPTIONS="-tag:v hvc1"
+    fi
+
+    if [[ "$AUDIO_CODEC" == "aac" || "$AUDIO_CODEC" == "opus" ]]; then
+        AUDIO_CODEC="copy"
+    else
+        AUDIO_CODEC="aac"
+        AUDIO_OPTIONS="-profile:a aac_low -ac 2"
+    fi
+
+    echo "Starting conversion..."
+    ffmpeg -y -v error -hwaccel videotoolbox -i "$TARGET_DIR/$FILENAME" -map 0:v:0 -map 0:a -c:v "$VIDEO_CODEC" $VIDEO_OPTIONS -c:a "$AUDIO_CODEC" $AUDIO_OPTIONS -movflags +faststart "$FILENAME_WE.mp4" -stats
+done

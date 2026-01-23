@@ -1,0 +1,181 @@
+#! /usr/bin/env python3
+
+# Imports
+import base64
+import os
+import re
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from glob import glob
+from subprocess import DEVNULL, check_call
+
+import requests
+from requests.exceptions import RequestException
+
+
+# Logic for getting the actual video URL
+# As found on the javascript with the page
+def get_video_url(
+    pattern: str, some_value: int, init_val: int, str_arr: list[str]
+) -> tuple[str, str]:
+    empty_array: dict[str, str] = {}
+    link_regex = r"\"file\":\"(.+)/vi"
+
+    def base36(number: int) -> str:
+        digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+        result = ""
+        if number == 0:
+            return "0"
+        while number:
+            number, remainder = divmod(number, 36)
+            result = digits[remainder] + result
+        return result
+
+    def zero(c: int) -> str:
+        if c < some_value:
+            x = ""
+        else:
+            x = zero(int(c / some_value))
+
+        c = c % some_value
+        if c > 35:
+            x = x + str(chr(c + 29))
+        else:
+            x = x + base36(c)
+
+        return x
+
+    def mystry(x: re.Match[str]):
+        return empty_array[x.group()]
+
+    while init_val != 0:
+        init_val -= 1
+        zi: str = zero(init_val)
+        empty_array[zi] = str_arr[init_val] or zi
+
+    # This returns a javascript code which contains the actual video url the player loads
+    pattern = re.sub(r"\b\w+\b", mystry, pattern)
+
+    # Just taking the video url using regex
+    link1 = re.search(link_regex, pattern).group(1)  # pyright: ignore[reportOptionalMemberAccess]
+    root = re.search(r"(https://.+?)/", link1).group(1)  # pyright: ignore[reportOptionalMemberAccess]
+
+    return (link1 + "/480.m3u8", root)
+
+
+main_regex = r"(?<=src\=\')https:\/\/flow\.tvlogy\.to.+(?=\' F)"
+iframe_regex = r"(?<=\.Run\(\").+(?=\"\);)"
+param1_regx = r"(?<=}\(').+(?=',)"
+param2_regx = r"(?<=;',)\d+(?=,)"
+param3_regx = r"(?<=\d,)\d+(?=,)"
+param4_regx = r"(?<=\d,').+(?='\.)"
+
+# Creating a request session
+session = requests.Session()
+session.headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:147.0) Gecko/20100101 Firefox/147.0"
+}
+
+# Opening file to write
+# file = open(sys.argv[2]+".temp", "wb")
+
+# Fetching the website given
+# And finding the iframe hosting the video player
+main_page = session.get(sys.argv[1]).text
+match = re.search(main_regex, main_page)
+
+# Grabbing the iframe source
+# Requesting to that url leads us to the player page
+# Where we extract a specific js code that generates the video url
+iframe_src = match.group()  # pyright: ignore[reportOptionalMemberAccess]
+iframe_page = session.get(iframe_src, headers={"referer": "https://tvmag.cc/"}).text
+match = re.search(iframe_regex, iframe_page)
+script_code = base64.b64decode(match.group().replace('"+"', "")).decode("utf-8")  # pyright: ignore[reportOptionalMemberAccess]
+
+# Then js code runs a single function with 4 params
+# The logic of the function is recreated above
+# Now the parameters are extracted
+match = re.search(param1_regx, script_code)
+pattern = match.group()  # pyright: ignore[reportOptionalMemberAccess]
+match = re.search(param2_regx, script_code)
+some_value = int(match.group())  # pyright: ignore[reportOptionalMemberAccess]
+match = re.search(param3_regx, script_code)
+some_sort_of_init_value = int(match.group())  # pyright: ignore[reportOptionalMemberAccess]
+match = re.search(param4_regx, script_code)
+string_array = match.group().split("|")  # pyright: ignore[reportOptionalMemberAccess]
+
+# Extracting the actual video url
+url, root = get_video_url(pattern, some_value, some_sort_of_init_value, string_array)
+
+# The video url actually leads to a m3u8 playlist
+req = session.get(
+    url,
+    headers={
+        "Origin": "https://flow.tvlogy.to",
+        "Referer": "https://flow.tvlogy.to/",
+    },
+)
+
+# Extract only the video segments
+# And download them .....
+# Function for threading
+progress = 0
+
+
+def runner(line: str, fnn: str):
+    global progress
+    while True:
+        try:
+            with requests.get(root + line, stream=True, timeout=5000) as res:
+                res.raise_for_status()
+                with open(fnn, "wb") as file:
+                    for cc in res.iter_content(chunk_size=4096):  # pyright: ignore[reportAny]
+                        _ = file.write(cc)  # pyright: ignore[reportAny]
+                    progress += 1
+                print("Downloaded " + str(progress) + " items.", end="\r", flush=True)
+                break
+        except RequestException:
+            time.sleep(1)
+
+
+# Multithreaded download
+with ThreadPoolExecutor(max_workers=8) as executor:
+    dd = open("ff.lst.tmp", "w")
+    total = 0
+    for line in req.text.split("\n"):
+        if line.startswith("/"):
+            fnn = os.path.basename(line) + ".tmp"
+            _ = executor.submit(runner, line, fnn)
+            _ = dd.write("file '" + fnn + "'\n")
+            total += 1
+    dd.close()
+    print("Total items: " + str(total))
+
+# The video segments are wrote to a single file (TS container)
+# That works but having problems with skipping video
+# So convert it to MKV. Only container is converted so its very fast
+_ = check_call(
+    [
+        "ffmpeg",
+        "-y",
+        "-v",
+        "error",
+        "-f",
+        "concat",
+        "-i",
+        "ff.lst.tmp",
+        "-c:v",
+        "hevc_videotoolbox",
+        "-c:a",
+        "aac",
+        "-tag:v",
+        "hvc1",
+        "-stats",
+        sys.argv[2] + ".mp4",
+    ],
+    stderr=DEVNULL,
+    stdout=DEVNULL,
+)
+
+_ = check_call(["rm", "-fr"] + glob("*.tmp"), stderr=DEVNULL, stdout=DEVNULL)

@@ -4,16 +4,14 @@ import datetime
 import os
 import re
 import sys
-import threading
 import time
 import traceback
 import urllib.parse as up
-from concurrent.futures import ALL_COMPLETED, Future, ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from typing import Self, override
 
 FMSearchRegex = re.compile("""href=["']([^.].+)["']""", re.IGNORECASE)
-TPSearchRegex = re.compile("""href=["'](/t.+?)["']>""", re.IGNORECASE)
 
 # Dependency Warning
 try:
@@ -21,7 +19,7 @@ try:
 
     import requests
     from tqdm import tqdm
-except:
+except ModuleNotFoundError as _e:
     print("""
 ftpdl requires:
     BeautifulSoup
@@ -33,7 +31,7 @@ Install with the following command:
 If inside a virtual env:
     pip install bs4 tqdm requests --break-system-packages
 """)
-    exit(1)
+    sys.exit(1)
 
 # Server base URLs
 TIMEPASSBD_URL = "http://ftp.timepassbd.live"
@@ -53,11 +51,11 @@ class FTPType(Enum):
     FOLDER = 1
 
     @classmethod
-    def getType(self, url: str) -> Self:
+    def getType(cls, url: str):
         if url.endswith("/"):
-            return self.FOLDER
+            return cls.FOLDER
         else:
-            return self.FILE
+            return cls.FILE
 
 
 class FTPItem:
@@ -65,7 +63,7 @@ class FTPItem:
     url: str
     type: FTPType
 
-    def __init__(self: Self, url: str) -> Self:
+    def __init__(self: Self, url: str):
         self.url = url
         self.type = FTPType.getType(url)
         if self.type == FTPType.FILE:
@@ -80,23 +78,9 @@ class FTPItem:
 
 def not_implemented():
     print("Feature not yet implemented !")
-    exit(0)
-
-
-def timepassbd_logic(url: str) -> list[FTPItem]:
-    global TPSearchRegex
-    itemList = []
-    data = requests.get(url).text
-    data = TPSearchRegex.findall(data)
-
-    for item in data:
-        itemList.append(FTPItem(f"{TIMEPASSBD_URL}{item}"))
-
-    return itemList
-
+    sys.exit(0)
 
 def fmftp_logic(url: str) -> list[FTPItem]:
-    global FMSearchRegex
     itemList = []
     data = requests.get(url).text
     data = FMSearchRegex.findall(data)
@@ -105,16 +89,12 @@ def fmftp_logic(url: str) -> list[FTPItem]:
 
     return itemList
 
-
 # a function that makes folder list
 def makeList(i: FTPItem) -> list[FTPItem]:
-    if i.url.startswith(TIMEPASSBD_URL):
-        return timepassbd_logic(i.url)
-    elif i.url.startswith(FMFTP_URL):
+    if i.url.startswith(FMFTP_URL):
         return fmftp_logic(i.url)
     else:
         not_implemented()
-
 
 # Logic for timepassbd anfd ftpbd
 def download(item: FTPItem):
@@ -153,7 +133,7 @@ def download(item: FTPItem):
                 file.write(data)
     else:
         print("Downloading: " + file_name)
-        with tqdm(total=total_size, unit="B", unit_scale=True, colour="RED") as pbar:
+        with tqdm(total=total_size, unit="B", unit_scale=True, colour="#800020", ascii=True) as pbar:
             for data in res.iter_content(block_size):
                 pbar.update(len(data))
                 file.write(data)
@@ -172,37 +152,25 @@ def do_search(item: FTPItem, sk: str) -> bool:
 
 # experimental thread support
 thread = int(os.environ.get("FTPDL_THREAD", "1"))
-# count = 0
 if thread != 1:
     tpe = ThreadPoolExecutor(max_workers=thread)
 
 
 # process everything inside
 def process(url: str, search: bool, keyw: str = ""):
-    # global count
-    # count += 1
-    # tl: list[Future[None]] = []
     i = FTPItem(url)
     if search:
         if i.type == FTPType.FOLDER:
-            # print(f"\033[KSearching: {i.name[:40]}", end="\r")
             if do_search(i, keyw):
-                # count -= 1
                 return
             else:
-                # count -= 1
                 for item in makeList(i):
                     if thread != 1:
-                        # count += 1
                         _ = tpe.submit(process, item.url, search, keyw)
-                        # tl.append(x)
                     else:
                         process(item.url, search, keyw)
-                # if thread != 1:
-                #     _ = wait(tl, return_when=ALL_COMPLETED)
         else:
             if do_search(i, keyw):
-                # count -= 1
                 return
 
     else:
@@ -219,11 +187,8 @@ def process(url: str, search: bool, keyw: str = ""):
             for item in makeList(i):
                 if thread != 1:
                     _ = tpe.submit(process, item.url, search, keyw)
-                    # tl.append(x)
                 else:
                     process(item.url, search, keyw)
-            # if thread != 1:
-            #     _ = wait(tl, return_when=ALL_COMPLETED)
             print("Going back")
             os.chdir("..")
 
@@ -238,13 +203,13 @@ def main(url: str, search: bool, keyw: str):
         print("User terminated.")
         if thread != 1:
             tpe.shutdown(wait=False)
-        exit(0)
+        sys.exit(0)
     except Exception as e:
         print("Some error occured. See the log file.")
         _ = log.write(f"{e}\n\n")
         _ = log.write(f"{traceback.format_exc()}")
         log.close()
-        exit(1)
+        sys.exit(1)
 
 
 # game begins
@@ -259,27 +224,22 @@ if arg.search:
         print(f"searching in: {FTPItem(arg.download).name}")
         main(arg.download, True, arg.search)
     else:
-        print("Searching TimepassBD")
-        main(f"{TIMEPASSBD_URL}/", True, arg.search)
-        print("Searching FMFtp")
+        print("Searching....")
         main(f"{FMFTP_URL}/data/", True, arg.search)
-    # print("\nSearch Done")
-    # _ = threading.Event().wait()
     if thread != 1:
         while not tpe._work_queue.empty():
             time.sleep(10)
-    exit()
+    sys.exit()
 
 if arg.download:
     main(arg.download, False, "")
-    # _ = threading.Event().wait()
-    exit()
+    sys.exit()
 
 if os.path.exists("ftpdl.link"):
-    link_file = open("ftpdl.link", "r")
-    for line in link_file:
-        main(line, False, "")
-    exit(0)
+    with open("ftpdl.link", "rt") as link_file:
+        for line in link_file:
+            main(line.strip(), False, "")
+        sys.exit()
 else:
     print("Please create a ftpdl.link file or provide a URL.")
-    exit(1)
+    sys.exit(1)
